@@ -2,6 +2,7 @@ services:
   - type: web
     name: battleship-multiplayer
     env: node
+    rootDir: battleship
     buildCommand: npm install
     startCommand: node server/server.js
     plan: free

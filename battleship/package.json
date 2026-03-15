@@ -1,0 +1,21 @@
+{
+  "name": "battleship-multiplayer",
+  "version": "2.0.0",
+  "description": "Battleship Multiplayer Online — Thai, 2-10 players",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "node --watch server/server.js"
+  },
+  "keywords": ["battleship", "multiplayer", "game"],
+  "license": "ISC",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "socket.io": "^4.8.3",
+    "uuid": "^11.0.0"
+  }
+}

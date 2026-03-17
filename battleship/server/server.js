@@ -9,6 +9,12 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 const PORT = process.env.PORT || 3000;
 
+// Fix CSP before anything else
+app.use((req, res, next) => {
+    res.removeHeader('Content-Security-Policy');
+    res.setHeader('Content-Security-Policy', "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;");
+    next();
+});
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Allow socket.io and inline scripts

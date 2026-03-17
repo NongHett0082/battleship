@@ -99,16 +99,16 @@ function init(){
     SC.on('roomCreated',(d)=>{
     myId=d.playerId; myRoomCode=d.roomCode; isHost=true;
     const n=document.getElementById('host-name').value.trim();
-    sessionStorage.setItem('bs_room',d.roomCode);
-    sessionStorage.setItem('bs_name',n);
+sessionStorage.setItem('bs_room',d.roomCode);
+sessionStorage.setItem('bs_name',n);
     document.getElementById('display-code').textContent=d.roomCode;
     showRoomCard();
 });
 SC.on('roomJoined',(d)=>{
     myId=d.playerId; myRoomCode=d.roomCode; isHost=false;
     const n=document.getElementById('join-name').value.trim();
-    sessionStorage.setItem('bs_room',d.roomCode);
-    sessionStorage.setItem('bs_name',n);
+sessionStorage.setItem('bs_room',d.roomCode);
+sessionStorage.setItem('bs_name',n);
     document.getElementById('display-code').textContent=d.roomCode;
     showRoomCard();
 });

@@ -116,10 +116,11 @@ function init(){
     SC.on('hostChanged',(d)=>{
         if(d.newHostId===myId){ isHost=true; toast('คุณเป็น Host คนใหม่แล้ว',true); }
     });
-    SC.on('setupPhaseStart',(d)=>{
-        const name = sessionStorage.getItem('bs_name') || 'player';
-        window.location.href=`setup.html?room=${myRoomCode}&name=${encodeURIComponent(name)}`;
-    });
+   SC.on('setupPhaseStart',(d)=>{
+    const name = sessionStorage.getItem('bs_name') || 'player';
+    console.log('[Lobby] going to setup, name=', name, 'room=', myRoomCode);
+    window.location.href=`setup.html?room=${myRoomCode}&name=${encodeURIComponent(name)}`;
+});
     SC.on('error',(d)=>toast(d.message));
 }
 

@@ -111,12 +111,10 @@ function init(){
         if(d.newHostId===myId){ isHost=true; toast('คุณเป็น Host คนใหม่แล้ว',true); }
     });
     SC.on('setupPhaseStart',(d)=>{
-        const name=encodeURIComponent(
-            document.getElementById('host-name').value.trim() ||
-            document.getElementById('join-name').value.trim() || ''
-        );
-        window.location.href=`setup.html?room=${myRoomCode}&player=${myId}&name=${name}`;
-    });
+    const name = document.getElementById('host-name')?.value.trim() ||
+                 document.getElementById('join-name')?.value.trim() || 'player';
+    window.location.href=`setup.html?room=${myRoomCode}&player=${myId}&name=${encodeURIComponent(name)}`;
+});
     SC.on('error',(d)=>toast(d.message));
 }
 

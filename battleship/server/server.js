@@ -6,6 +6,7 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 
+// Socket.io Configuration
 const io = new Server(server, {
   cors: {
     origin: process.env.NODE_ENV === 'production' 
@@ -17,43 +18,31 @@ const io = new Server(server, {
   transports: ['polling', 'websocket'],
   allowUpgrades: true,
   pingTimeout: 60000,
-  pingInterval: 25000,
-  upgradeTimeout: 30000,
-  allowEIO3: true,
+  pingInterval: 25000
 });
 
 const PORT = process.env.PORT || 3000;
 
-// ✅ CSP Header - อนุญาต data: และ unsafe-eval
+// CSP Header - อนุญาตทุกอย่างที่จำเป็น
 app.use((req, res, next) => {
-  res.removeHeader('Content-Security-Policy');
   res.setHeader('Content-Security-Policy', 
-    "default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https: data:; " +
+    "default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https: ; " +
     "connect-src 'self' ws: wss: https: http:; " +
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; " +
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https: cdn.socket.io; " +
     "style-src 'self' 'unsafe-inline' https:; " +
     "img-src 'self' blob: https: ; " +
     "font-src 'self' https: ;");
   next();
 });
 
+// Serve static files
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'lobby.html'));
-});
-
-app.get('/lobby.html', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'lobby.html'));
-});
-
-app.get('/setup.html', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'setup.html'));
-});
-
-app.get('/battle.html', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'battle.html'));
-});
+// Routes for HTML pages
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'lobby.html')));
+app.get('/lobby.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'lobby.html')));
+app.get('/setup.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'setup.html')));
+app.get('/battle.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'battle.html')));
 
 const roomManager = require('./roomManager');
 const gameLogic = require('./gameLogic');
@@ -62,15 +51,15 @@ function broadcastRoomState(roomCode) {
   const room = roomManager.getRoom(roomCode);
   if (!room) return;
   io.to(roomCode).emit('roomState', {
-    roomCode, 
-    status: room.status, 
+    roomCode,
+    status: room.status,
     maxPlayers: room.maxPlayers,
     players: room.getPlayerList().map(p => ({
-      socketId: p.socketId, 
-      name: p.name, 
+      socketId: p.socketId,
+      name: p.name,
       isHost: p.isHost,
-      ready: p.ready, 
-      alive: p.alive, 
+      ready: p.ready,
+      alive: p.alive,
       color: p.color
     })),
     currentTurn: room.currentTurnPlayerId()
@@ -100,7 +89,6 @@ function updateSocketId(room, playerName, newSocketId) {
       if (idx !== -1) room.turnOrder[idx] = newSocketId;
       if (room.hostId === oldId) room.hostId = newSocketId;
       if (room.joinId === oldId) room.joinId = newSocketId;
-      console.log('[Room ' + room.roomCode + '] Updated ' + playerName + ': ' + oldId.substr(0,6) + ' -> ' + newSocketId.substr(0,6));
       return true;
     }
   }
@@ -108,13 +96,13 @@ function updateSocketId(room, playerName, newSocketId) {
 }
 
 io.on('connection', (socket) => {
-  console.log('+ ' + socket.id.substr(0,8));
+  console.log('[Socket] Connected:', socket.id.substr(0, 8));
 
   socket.on('createRoom', (data, cb) => {
     const { playerName, maxPlayers } = data;
-    if (!playerName || !playerName.trim()) { 
-      socket.emit('error', { message: 'Please enter name' }); 
-      return; 
+    if (!playerName || !playerName.trim()) {
+      socket.emit('error', { message: 'กรุณาใส่ชื่อ' });
+      return;
     }
     const roomCode = roomManager.createRoom(socket.id, playerName.trim(), maxPlayers || 2);
     socket.join(roomCode);
@@ -126,16 +114,16 @@ io.on('connection', (socket) => {
   socket.on('joinRoom', (data, cb) => {
     const { roomCode, playerName } = data;
     const code = roomCode ? roomCode.trim().toUpperCase() : '';
-    if (!code || !playerName || !playerName.trim()) { 
-      socket.emit('error', { message: 'Please enter name and room code' }); 
-      if (cb) cb({ error: 'missing' }); 
-      return; 
+    if (!code || !playerName || !playerName.trim()) {
+      socket.emit('error', { message: 'กรุณาใส่ชื่อและรหัสห้อง' });
+      if (cb) cb({ error: 'missing' });
+      return;
     }
     const result = roomManager.joinRoom(code, socket.id, playerName.trim());
-    if (result.error) { 
-      socket.emit('error', { message: result.error }); 
-      if (cb) cb({ error: result.error }); 
-      return; 
+    if (result.error) {
+      socket.emit('error', { message: result.error });
+      if (cb) cb({ error: result.error });
+      return;
     }
     socket.join(code);
     socket.emit('roomJoined', { roomCode: code, playerId: socket.id, playerName: playerName.trim() });
@@ -148,22 +136,18 @@ io.on('connection', (socket) => {
     const { roomCode, playerName } = data;
     if (!roomCode || !playerName) return;
     const room = roomManager.getRoom(roomCode);
-    if (!room) { 
-      socket.emit('error', { message: 'Room expired' }); 
-      return; 
+    if (!room) {
+      socket.emit('error', { message: 'ห้องหมดอายุแล้ว' });
+      return;
     }
-
     socket.join(roomCode);
     updateSocketId(room, playerName, socket.id);
     broadcastRoomState(roomCode);
-
     if (room.status === 'battle') {
       socket.emit('battlePhaseStart', {
         firstPlayerId: room.currentTurnPlayerId(),
         players: room.getPlayerList().map(p => ({
-          socketId: p.socketId, 
-          name: p.name, 
-          color: p.color,
+          socketId: p.socketId, name: p.name, color: p.color,
           maxBullets: gameLogic.calcMaxBullets(p.board)
         })),
         ...getTurnState(room)
@@ -177,13 +161,13 @@ io.on('connection', (socket) => {
     const { roomCode } = data;
     const room = roomManager.getRoom(roomCode);
     if (!room) return;
-    if (!room.getPlayer(socket.id) || !room.getPlayer(socket.id).isHost) { 
-      socket.emit('error', { message: 'Only host can start' }); 
-      return; 
+    if (!room.getPlayer(socket.id) || !room.getPlayer(socket.id).isHost) {
+      socket.emit('error', { message: 'เฉพาะ host เท่านั้นที่เริ่มเกมได้' });
+      return;
     }
-    if (room.playerCount() < roomManager.MIN_PLAYERS) { 
-      socket.emit('error', { message: 'Need at least ' + roomManager.MIN_PLAYERS + ' players' }); 
-      return; 
+    if (room.playerCount() < roomManager.MIN_PLAYERS) {
+      socket.emit('error', { message: 'ต้องมีอย่างน้อย ' + roomManager.MIN_PLAYERS + ' คน' });
+      return;
     }
     room.status = 'setup';
     io.to(roomCode).emit('setupPhaseStart', { roomCode });
@@ -197,10 +181,7 @@ io.on('connection', (socket) => {
     const player = room.getPlayer(socket.id);
     if (!player) return;
     const result = gameLogic.placeShip(player.board, orientation, size, startRow, startCol);
-    if (!result.success) { 
-      socket.emit('error', { message: result.error }); 
-      return; 
-    }
+    if (!result.success) socket.emit('error', { message: result.error });
   });
 
   socket.on('placeLand', (data) => {
@@ -233,24 +214,17 @@ io.on('connection', (socket) => {
   socket.on('markReady', (data) => {
     const { roomCode } = data;
     const room = roomManager.getRoom(roomCode);
-    if (!room || room.status !== 'setup') {
-      console.log('[markReady] SKIP room=' + roomCode + ' status=' + (room ? room.status : 'null'));
-      return;
-    }
+    if (!room || room.status !== 'setup') return;
     const player = room.getPlayer(socket.id);
     if (!player) {
-      console.log('[markReady] Player not found: ' + socket.id + ' in room ' + roomCode);
-      socket.emit('error', { message: 'Player not found' });
+      socket.emit('error', { message: 'ไม่พบผู้เล่น' });
       return;
     }
-
     player.ready = true;
-    console.log('[markReady] ' + player.name + ' ready.');
+    console.log('[Ready] ' + player.name + ' ready in room ' + roomCode);
     
-    // ✅ ส่ง event ให้ทุกคนรู้
+    // ✅ สำคัญ: ส่ง roomState ให้ทุกคนเห็นการอัปเดต
     io.to(roomCode).emit('playerReady', { playerId: socket.id, playerName: player.name });
-    
-    // ✅ ส่ง roomState ให้อัพเดท UI
     broadcastRoomState(roomCode);
 
     if (room.allReady()) {
@@ -260,14 +234,11 @@ io.on('connection', (socket) => {
       const firstId = room.currentTurnPlayerId();
       room.bulletsLeft = gameLogic.calcMaxBullets(room.players.get(firstId).board);
       room.shotsFiredThisTurn = [];
-      console.log('[Battle] Starting! First: ' + (room.players.get(firstId) ? room.players.get(firstId).name : 'unknown'));
-
+      
       io.to(roomCode).emit('battlePhaseStart', {
         firstPlayerId: firstId,
         players: room.getPlayerList().map(p => ({
-          socketId: p.socketId, 
-          name: p.name, 
-          color: p.color,
+          socketId: p.socketId, name: p.name, color: p.color,
           maxBullets: gameLogic.calcMaxBullets(p.board)
         })),
         ...getTurnState(room)
@@ -281,68 +252,60 @@ io.on('connection', (socket) => {
     const room = roomManager.getRoom(roomCode);
     if (!room || room.status !== 'battle') return;
     const attackerId = socket.id;
-    if (attackerId !== room.currentTurnPlayerId()) { 
-      socket.emit('error', { message: 'Not your turn' }); 
-      return; 
+    if (attackerId !== room.currentTurnPlayerId()) {
+      socket.emit('error', { message: 'ยังไม่ถึงตาคุณ' });
+      return;
     }
-    if (targetId === attackerId) { 
-      socket.emit('error', { message: 'Cannot attack yourself' }); 
-      return; 
+    if (targetId === attackerId) {
+      socket.emit('error', { message: 'โจมตีตัวเองไม่ได้' });
+      return;
     }
-    if (room.bulletsLeft <= 0) { 
-      socket.emit('error', { message: 'No bullets left' }); 
-      return; 
+    if (room.bulletsLeft <= 0) {
+      socket.emit('error', { message: 'กระสุนหมดแล้ว' });
+      return;
     }
-
     const target = room.getPlayer(targetId);
-    if (!target || !target.alive) { 
-      socket.emit('error', { message: 'Invalid target' }); 
-      return; 
+    if (!target || !target.alive) {
+      socket.emit('error', { message: 'เป้าหมายไม่ถูกต้อง' });
+      return;
     }
 
+    // Spread rule: ต้องยิงทุกคนก่อนยิงซ้ำ
     const aliveOpponents = room.alivePlayers().filter(p => p.socketId !== attackerId);
     const shots = room.shotsFiredThisTurn || [];
     const shotTargets = [...new Set(shots.map(s => s.targetId))];
     const unshotOpponents = aliveOpponents.filter(p => !shotTargets.includes(p.socketId));
     if (unshotOpponents.length > 0 && !unshotOpponents.find(p => p.socketId === targetId)) {
-      socket.emit('error', { message: 'Must attack other players first' });
+      socket.emit('error', { message: 'ต้องยิง ' + unshotOpponents.map(p => p.name).join(', ') + ' ก่อน!' });
       return;
     }
 
     const result = gameLogic.processAttack(target.board, row, col);
-    if (result.alreadyAttacked) { 
-      socket.emit('error', { message: 'Already attacked this cell' }); 
-      return; 
+    if (result.alreadyAttacked) {
+      socket.emit('error', { message: 'โจมตีช่องนี้ไปแล้ว' });
+      return;
     }
 
     room.shotsFiredThisTurn = [...shots, { targetId }];
     if (!result.refund) room.bulletsLeft = Math.max(0, room.bulletsLeft - 1);
 
     let eliminated = false;
-    if (gameLogic.checkWinCondition(target.board)) { 
-      target.alive = false; 
-      eliminated = true; 
+    if (gameLogic.checkWinCondition(target.board)) {
+      target.alive = false;
+      eliminated = true;
     }
 
     io.to(roomCode).emit('attackResult', {
-      attackerId, 
-      targetId, 
-      row, 
-      col,
-      hit: result.hit, 
-      sunk: result.sunk || false,
-      what: result.what, 
-      refund: result.refund,
-      bulletsLeft: room.bulletsLeft, 
-      eliminated
+      attackerId, targetId, row, col,
+      hit: result.hit, sunk: result.sunk || false,
+      what: result.what, refund: result.refund,
+      bulletsLeft: room.bulletsLeft, eliminated
     });
 
     if (eliminated) {
       io.to(roomCode).emit('playerEliminated', {
-        eliminatedId: targetId, 
-        eliminatedName: target.name,
-        eliminatedBy: attackerId, 
-        eliminatedByName: room.getPlayer(attackerId) ? room.getPlayer(attackerId).name : 'Unknown'
+        eliminatedId: targetId, eliminatedName: target.name,
+        eliminatedBy: attackerId, eliminatedByName: room.getPlayer(attackerId) ? room.getPlayer(attackerId).name : 'Unknown'
       });
     }
 
@@ -351,7 +314,7 @@ io.on('connection', (socket) => {
       room.status = 'finished';
       io.to(roomCode).emit('gameOver', alive.length === 1
         ? { winnerId: alive[0].socketId, winnerName: alive[0].name }
-        : { winnerId: null, winnerName: 'No winner' });
+        : { winnerId: null, winnerName: 'ไม่มีผู้ชนะ' });
       return;
     }
 
@@ -385,17 +348,13 @@ io.on('connection', (socket) => {
     const player = room.getPlayer(socket.id);
     if (!player) return;
     player.alive = false;
-    io.to(roomCode).emit('playerEliminated', { 
-      eliminatedId: socket.id, 
-      eliminatedName: player.name, 
-      forfeit: true 
-    });
+    io.to(roomCode).emit('playerEliminated', { eliminatedId: socket.id, eliminatedName: player.name, forfeit: true });
     const alive = room.alivePlayers();
     if (alive.length <= 1) {
       room.status = 'finished';
       io.to(roomCode).emit('gameOver', alive.length === 1
         ? { winnerId: alive[0].socketId, winnerName: alive[0].name }
-        : { winnerId: null, winnerName: 'No winner' });
+        : { winnerId: null, winnerName: 'ไม่มีผู้ชนะ' });
     } else if (socket.id === room.currentTurnPlayerId()) {
       room.advanceTurn();
       const nextId = room.currentTurnPlayerId();
@@ -407,10 +366,9 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log('- ' + socket.id.substr(0,8));
+    console.log('[Socket] Disconnected:', socket.id.substr(0, 8));
     for (const [code, room] of roomManager.rooms) {
       if (!room.players.has(socket.id)) continue;
-      const player = room.getPlayer(socket.id);
       if (room.status === 'waiting' || room.status === 'setup') {
         setTimeout(() => {
           const r = roomManager.getRoom(code);
@@ -429,5 +387,5 @@ io.on('connection', (socket) => {
 setInterval(() => roomManager.cleanupExpiredRooms(), 60 * 60 * 1000);
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log('Battleship server running on port ' + PORT);
+  console.log('🚀 Battleship server running on port ' + PORT);
 });

@@ -6,14 +6,19 @@ const MIN_PLAYERS = 2;
 
 const rooms = new Map();
 
+// เดิมอาจเป็น:
 function generateRoomCode() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let code;
-    do {
-        code = '';
-        for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
-    } while (rooms.has(code));
-    return code;
+  return uuidv4().substr(0, 4).toUpperCase();
+}
+
+// เปลี่ยนเป็น:
+function generateRoomCode() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = '';
+  for (let i = 0; i < 4; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
 }
 
 function createEmptyBoard() {

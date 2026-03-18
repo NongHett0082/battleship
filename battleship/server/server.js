@@ -23,15 +23,15 @@ const io = new Server(server, {
 
 const PORT = process.env.PORT || 3000;
 
-// CSP Header - อนุญาตทุกอย่างที่จำเป็น
+// ✅ CSP Header - อนุญาตทุกอย่างที่จำเป็น
 app.use((req, res, next) => {
   res.setHeader('Content-Security-Policy', 
-    "default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https: ; " +
+    "default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https: wss:; " +
     "connect-src 'self' ws: wss: https: http:; " +
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https: cdn.socket.io; " +
-    "style-src 'self' 'unsafe-inline' https:; " +
-    "img-src 'self' blob: https: ; " +
-    "font-src 'self' https: ;");
+    "style-src 'self' 'unsafe-inline' https: fonts.googleapis.com; " +
+    "img-src 'self' blob: https: data:; " +
+    "font-src 'self' https: fonts.gstatic.com data:;");
   next();
 });
 

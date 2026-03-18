@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>⚓ Battleship Multiplayer</title>
-  <meta name="description" content="เกมเรือรบออนไลน์ เล่นกับเพื่อนได้ 2-10 คน"/>
   
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js" integrity="sha384-mZLF4UVrpi/QTWPA7BjNPEnkIfRFn4ZEO3Qt/HFklTJBj/gBOV8G3HcKn4NfQblz" crossorigin="anonymous"></script>
   
@@ -91,7 +90,7 @@
       color: var(--text-dim);
     }
     
-    input[type="text"], input[type="number"] {
+    input[type="text"] {
       width: 100%;
       padding: 12px 14px;
       border-radius: 10px;
@@ -662,10 +661,13 @@
         
         socketClient.on('roomState', (data) => {
           console.log('[Lobby] Received roomState:', data);
-          if (data.roomCode !== currentRoomCode) {
+          
+          // ✅ แก้ไข: อนุญาตให้รับ roomState แม้ currentRoomCode จะเป็น null
+          if (currentRoomCode && data.roomCode !== currentRoomCode) {
             console.log('[Lobby] Room code mismatch:', data.roomCode, '!=', currentRoomCode);
             return;
           }
+          
           updatePlayersList(data.players);
           
           const player = data.players.find(function(p) { return p.socketId === mySocketId; });
@@ -739,6 +741,8 @@
       
       function enterLobby(roomCode, playerName, host) {
         console.log('[Lobby] Entering lobby:', roomCode, playerName, host);
+        
+        // ✅ ตั้งค่า roomCode ทันที
         currentRoomCode = roomCode;
         currentPlayerName = playerName;
         isHost = host;

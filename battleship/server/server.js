@@ -23,22 +23,26 @@ const io = new Server(server, {
 
 const PORT = process.env.PORT || 3000;
 
-// ✅ CSP Header - อนุญาตทุกอย่างที่จำเป็น
+// ✅ CSP Header - แก้ไขครบถ้วน
 app.use((req, res, next) => {
   res.setHeader('Content-Security-Policy', 
-    "default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https: wss:; " +
-    "connect-src 'self' ws: wss: https: http:; " +
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https: cdn.socket.io; " +
+    "default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https: wss: data:; " +
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https: cdn.socket.io cdnjs.cloudflare.com; " +
     "style-src 'self' 'unsafe-inline' https: fonts.googleapis.com; " +
+    "connect-src 'self' ws: wss: https: http:; " +
     "img-src 'self' blob: https: data:; " +
-    "font-src 'self' https: fonts.gstatic.com data:;");
+    "font-src 'self' https: fonts.gstatic.com data:; " +
+    "media-src 'self' blob: https:; " +
+    "object-src 'none'; " +
+    "base-uri 'self'; " +
+    "form-action 'self';");
   next();
 });
 
 // Serve static files
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-// Routes for HTML pages
+// Routes
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'lobby.html')));
 app.get('/lobby.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'lobby.html')));
 app.get('/setup.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'setup.html')));
@@ -270,7 +274,6 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Spread rule: ต้องยิงทุกคนก่อนยิงซ้ำ
     const aliveOpponents = room.alivePlayers().filter(p => p.socketId !== attackerId);
     const shots = room.shotsFiredThisTurn || [];
     const shotTargets = [...new Set(shots.map(s => s.targetId))];

@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: battleship-multiplayer
+    env: node
+    buildCommand: npm install
+    startCommand: node server/server.js
+    plan: free
+    region: oregon
+    envVars:
+      - key: NODE_ENV
+        value: production
+    # ✅ ไม่กำหนด PORT ค่าตายตัว ให้ Render จัดการอัตโนมัติ

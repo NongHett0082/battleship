@@ -171,6 +171,7 @@
         socketClient.on('disconnect', reason => { updateConnectionStatus(false); if (currentRoomCode && reason !== 'io client disconnect') setTimeout(() => { if (currentRoomCode && currentPlayerName) socketClient.rejoinRoom(currentRoomCode, currentPlayerName); }, 1500); });
         socketClient.on('error', data => { showError(data.message || 'เกิดข้อผิดพลาด'); resetLoading(); });
         socketClient.on('roomState', data => {
+          console.log('[Lobby] Received roomState:', data);
           if (currentRoomCode && data.roomCode !== currentRoomCode) return;
           updatePlayersList(data.players);
           const player = data.players.find(p => p.socketId === mySocketId);
@@ -179,6 +180,7 @@
             if (data.status === 'waiting' && data.players.length >= 2) {
               startBtn.classList.remove('hidden');
               const allReady = data.players.every(p => p.ready);
+              console.log('[Lobby] All players ready?', allReady, data.players.map(p => p.name + ':' + p.ready));
               startBtn.disabled = !allReady;
               waitingText.textContent = allReady ? 'ทุกคนพร้อมแล้ว! กดเริ่มเกม' : 'รอผู้เล่นเตรียมพร้อม...';
             }
@@ -219,6 +221,7 @@
       }
       
       function updatePlayersList(players) {
+        console.log('[Lobby] Updating players:', players);
         if (!players || players.length === 0) { playersList.innerHTML = '<div class="waiting-text">ยังไม่มีผู้เล่น</div>'; return; }
         const myId = mySocketId || socketClient.id;
         playersList.innerHTML = players.map(p => {
@@ -246,7 +249,6 @@
       function resetLoading() { [createBtn, joinBtn, startBtn].forEach(btn => { if (btn.disabled && btn.dataset.originalText) setLoading(btn, false); }); }
       function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
       
-      // Auto-join from URL
       const params = new URLSearchParams(window.location.search);
       const room = params.get('room'), name = params.get('name');
       if (room && name) { joinCode.value = room.toUpperCase(); joinName.value = name; setTimeout(() => { if (!currentRoomCode) joinBtn.click(); }, 500); }

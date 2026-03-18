@@ -1,6 +1,7 @@
 // roomManager.js — Multi-player (2-10 players per room)
 const { v4: uuidv4 } = require('uuid');
-
+// เดิม:
+const { v4: uuidv4 } = require('uuid');
 const MAX_PLAYERS = 10;
 const MIN_PLAYERS = 2;
 

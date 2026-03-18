@@ -24,7 +24,7 @@ const io = new Server(server, {
 
 const PORT = process.env.PORT || 3000;
 
-// ✅ แก้ไข CSP Header - อนุญาต data: และ unsafe-eval
+// ✅ CSP Header - อนุญาต data: และ unsafe-eval
 app.use((req, res, next) => {
   res.removeHeader('Content-Security-Policy');
   res.setHeader('Content-Security-Policy', 
@@ -32,8 +32,8 @@ app.use((req, res, next) => {
     "connect-src 'self' ws: wss: https: http:; " +
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; " +
     "style-src 'self' 'unsafe-inline' https:; " +
-    "img-src 'self' blob: https: data:; " +
-    "font-src 'self' https: data:;");
+    "img-src 'self' blob: https: ; " +
+    "font-src 'self' https: ;");
   next();
 });
 
@@ -246,7 +246,11 @@ io.on('connection', (socket) => {
 
     player.ready = true;
     console.log('[markReady] ' + player.name + ' ready.');
+    
+    // ✅ ส่ง event ให้ทุกคนรู้
     io.to(roomCode).emit('playerReady', { playerId: socket.id, playerName: player.name });
+    
+    // ✅ ส่ง roomState ให้อัพเดท UI
     broadcastRoomState(roomCode);
 
     if (room.allReady()) {

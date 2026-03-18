@@ -216,40 +216,47 @@ io.on('connection', (socket) => {
   });
 
   socket.on('markReady', (data) => {
-    const { roomCode } = data;
-    const room = roomManager.getRoom(roomCode);
-    if (!room || room.status !== 'setup') return;
-    const player = room.getPlayer(socket.id);
-    if (!player) {
-      socket.emit('error', { message: 'ไม่พบผู้เล่น' });
-      return;
-    }
-    player.ready = true;
-    console.log('[Ready] ' + player.name + ' ready in room ' + roomCode);
-    
-    // ✅ สำคัญ: ส่ง roomState ให้ทุกคนเห็นการอัปเดต
-    io.to(roomCode).emit('playerReady', { playerId: socket.id, playerName: player.name });
-    broadcastRoomState(roomCode);
+  const { roomCode } = data;
+  const room = roomManager.getRoom(roomCode);
+  if (!room || room.status !== 'setup') {
+    console.log('[markReady] SKIP room=' + roomCode + ' status=' + (room ? room.status : 'null'));
+    return;
+  }
+  const player = room.getPlayer(socket.id);
+  if (!player) {
+    console.log('[markReady] Player not found: ' + socket.id + ' in room ' + roomCode);
+    socket.emit('error', { message: 'ไม่พบผู้เล่น' });
+    return;
+  }
 
-    if (room.allReady()) {
-      room.status = 'battle';
-      room.turnOrder = Array.from(room.players.keys()).sort(() => Math.random() - 0.5);
-      room.currentTurnIndex = 0;
-      const firstId = room.currentTurnPlayerId();
-      room.bulletsLeft = gameLogic.calcMaxBullets(room.players.get(firstId).board);
-      room.shotsFiredThisTurn = [];
-      
-      io.to(roomCode).emit('battlePhaseStart', {
-        firstPlayerId: firstId,
-        players: room.getPlayerList().map(p => ({
-          socketId: p.socketId, name: p.name, color: p.color,
-          maxBullets: gameLogic.calcMaxBullets(p.board)
-        })),
-        ...getTurnState(room)
-      });
-      broadcastRoomState(roomCode);
-    }
-  });
+  player.ready = true;
+  console.log('[Ready] ' + player.name + ' ready in room ' + roomCode);
+  
+  // ✅ ส่ง event ให้ทุกคนรู้
+  io.to(roomCode).emit('playerReady', { playerId: socket.id, playerName: player.name });
+  
+  // ✅ สำคัญมาก: ส่ง roomState ให้อัพเดท UI ของทุกคน
+  broadcastRoomState(roomCode);
+
+  if (room.allReady()) {
+    room.status = 'battle';
+    room.turnOrder = Array.from(room.players.keys()).sort(() => Math.random() - 0.5);
+    room.currentTurnIndex = 0;
+    const firstId = room.currentTurnPlayerId();
+    room.bulletsLeft = gameLogic.calcMaxBullets(room.players.get(firstId).board);
+    room.shotsFiredThisTurn = [];
+    
+    io.to(roomCode).emit('battlePhaseStart', {
+      firstPlayerId: firstId,
+      players: room.getPlayerList().map(p => ({
+        socketId: p.socketId, name: p.name, color: p.color,
+        maxBullets: gameLogic.calcMaxBullets(p.board)
+      })),
+      ...getTurnState(room)
+    });
+    broadcastRoomState(roomCode);
+  }
+});
 
   socket.on('attack', (data) => {
     const { roomCode, targetId, row, col } = data;

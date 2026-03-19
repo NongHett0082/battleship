@@ -222,22 +222,56 @@
       
       function updatePlayersList(players) {
         console.log('[Lobby] Updating players:', players);
+        console.log('[Lobby] Players ready status:', players.map(p => p.name + ':' + p.ready));
+        
         if (!players || players.length === 0) { playersList.innerHTML = '<div class="waiting-text">ยังไม่มีผู้เล่น</div>'; return; }
+        
         const myId = mySocketId || socketClient.id;
+        console.log('[Lobby] My socket ID:', myId);
+        
         playersList.innerHTML = players.map(p => {
-          const isMe = p.socketId === myId, isHostPlayer = p.isHost;
+          const isMe = p.socketId === myId;
+          const isHostPlayer = p.isHost;
+          
+          console.log('[Lobby] Player:', p.name, '| SocketID:', p.socketId, '| Is me?', isMe, '| Ready?', p.ready);
+          
           let readyBtn = '';
-          if (p.ready) readyBtn = '<span class="player-badge ready">พร้อม</span>';
-          else if (isMe && !amReady) readyBtn = '<button class="ready-btn" onclick="window.markReady()">พร้อม</button>';
-          else if (isMe && amReady) readyBtn = '<span style="color:var(--text-dim);font-size:0.85rem;">รอผู้อื่น...</span>';
-          else readyBtn = '<span style="color:var(--text-dim);font-size:0.85rem;">รอ...</span>';
-          return '<div class="player-item"><div class="player-name"><span class="status-dot online"></span>' + escapeHtml(p.name) + (isHostPlayer ? '<span class="player-badge">HOST</span>' : '') + (isMe ? ' <span style="color:var(--accent);">(คุณ)</span>' : '') + '</div>' + readyBtn + '</div>';
+          if (p.ready) {
+            readyBtn = '<span class="player-badge ready">พร้อม</span>';
+          } else if (isMe && !amReady) {
+            readyBtn = '<button class="ready-btn" onclick="window.markReady()">พร้อม</button>';
+          } else if (isMe && amReady) {
+            readyBtn = '<span style="color:var(--text-dim);font-size:0.85rem;">รอผู้อื่น...</span>';
+          } else {
+            readyBtn = '<span style="color:var(--text-dim);font-size:0.85rem;">รอ...</span>';
+          }
+          
+          return '<div class="player-item">' +
+            '<div class="player-name">' +
+              '<span class="status-dot online"></span>' +
+              escapeHtml(p.name) +
+              (isHostPlayer ? '<span class="player-badge">HOST</span>' : '') +
+              (isMe ? ' <span style="color:var(--accent);">(คุณ)</span>' : '') +
+            '</div>' +
+            readyBtn +
+          '</div>';
         }).join('');
+        
+        console.log('[Lobby] Players list updated');
       }
       
       window.markReady = function() {
-        if (!currentRoomCode || amReady) return;
+        console.log('[Lobby] Mark ready clicked');
+        console.log('[Lobby] Current room:', currentRoomCode);
+        console.log('[Lobby] Am ready?', amReady);
+        
+        if (!currentRoomCode || amReady) {
+          console.log('[Lobby] Cannot mark ready - room:', currentRoomCode, 'ready:', amReady);
+          return;
+        }
         amReady = true;
+        console.log('[Lobby] Setting amReady = true');
+        console.log('[Lobby] Sending markReady for room:', currentRoomCode);
         socketClient.markReady(currentRoomCode);
       };
       

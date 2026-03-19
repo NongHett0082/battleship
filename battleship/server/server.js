@@ -23,7 +23,7 @@ const io = new Server(server, {
 
 const PORT = process.env.PORT || 3000;
 
-// ✅ CSP Header - แก้ไขครบถ้วน
+// CSP Header
 app.use((req, res, next) => {
   res.setHeader('Content-Security-Policy', 
     "default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https: wss: data:; " +
@@ -216,47 +216,52 @@ io.on('connection', (socket) => {
   });
 
   socket.on('markReady', (data) => {
-  const { roomCode } = data;
-  const room = roomManager.getRoom(roomCode);
-  if (!room || room.status !== 'setup') {
-    console.log('[markReady] SKIP room=' + roomCode + ' status=' + (room ? room.status : 'null'));
-    return;
-  }
-  const player = room.getPlayer(socket.id);
-  if (!player) {
-    console.log('[markReady] Player not found: ' + socket.id + ' in room ' + roomCode);
-    socket.emit('error', { message: 'ไม่พบผู้เล่น' });
-    return;
-  }
+    const { roomCode } = data;
+    const room = roomManager.getRoom(roomCode);
+    if (!room || room.status !== 'setup') {
+      console.log('[markReady] SKIP room=' + roomCode + ' status=' + (room ? room.status : 'null'));
+      return;
+    }
+    const player = room.getPlayer(socket.id);
+    if (!player) {
+      console.log('[markReady] Player not found: ' + socket.id + ' in room ' + roomCode);
+      socket.emit('error', { message: 'ไม่พบผู้เล่น' });
+      return;
+    }
 
-  player.ready = true;
-  console.log('[Ready] ' + player.name + ' ready in room ' + roomCode);
-  
-  // ✅ ส่ง event ให้ทุกคนรู้
-  io.to(roomCode).emit('playerReady', { playerId: socket.id, playerName: player.name });
-  
-  // ✅ สำคัญมาก: ส่ง roomState ให้อัพเดท UI ของทุกคน
-  broadcastRoomState(roomCode);
-
-  if (room.allReady()) {
-    room.status = 'battle';
-    room.turnOrder = Array.from(room.players.keys()).sort(() => Math.random() - 0.5);
-    room.currentTurnIndex = 0;
-    const firstId = room.currentTurnPlayerId();
-    room.bulletsLeft = gameLogic.calcMaxBullets(room.players.get(firstId).board);
-    room.shotsFiredThisTurn = [];
+    // ✅ ตั้งค่า ready = true
+    player.ready = true;
+    console.log('[Ready] ' + player.name + ' ready in room ' + roomCode);
+    console.log('[Ready] Room players:', Array.from(room.players.entries()).map(([id, p]) => p.name + ':' + p.ready));
     
-    io.to(roomCode).emit('battlePhaseStart', {
-      firstPlayerId: firstId,
-      players: room.getPlayerList().map(p => ({
-        socketId: p.socketId, name: p.name, color: p.color,
-        maxBullets: gameLogic.calcMaxBullets(p.board)
-      })),
-      ...getTurnState(room)
-    });
+    // ✅ ส่ง event ให้ทุกคนรู้
+    io.to(roomCode).emit('playerReady', { playerId: socket.id, playerName: player.name });
+    
+    // ✅ สำคัญมาก: ส่ง roomState ทันทีเพื่ออัปเดต UI ของทุกคน
     broadcastRoomState(roomCode);
-  }
-});
+    console.log('[Ready] Broadcasted roomState to room ' + roomCode);
+
+    // เช็คถ้าทุกคนพร้อมแล้ว เริ่มเกม
+    if (room.allReady()) {
+      console.log('[Ready] All players ready! Starting battle...');
+      room.status = 'battle';
+      room.turnOrder = Array.from(room.players.keys()).sort(() => Math.random() - 0.5);
+      room.currentTurnIndex = 0;
+      const firstId = room.currentTurnPlayerId();
+      room.bulletsLeft = gameLogic.calcMaxBullets(room.players.get(firstId).board);
+      room.shotsFiredThisTurn = [];
+      
+      io.to(roomCode).emit('battlePhaseStart', {
+        firstPlayerId: firstId,
+        players: room.getPlayerList().map(p => ({
+          socketId: p.socketId, name: p.name, color: p.color,
+          maxBullets: gameLogic.calcMaxBullets(p.board)
+        })),
+        ...getTurnState(room)
+      });
+      broadcastRoomState(roomCode);
+    }
+  });
 
   socket.on('attack', (data) => {
     const { roomCode, targetId, row, col } = data;
